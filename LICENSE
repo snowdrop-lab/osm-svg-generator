@@ -1,0 +1,63 @@
+GreenCross 地図パスデータ - LICENSE
+============================================
+
+Copyright (c) 2025-2026 GreenCross-YAMAGATA+S
+All Rights Reserved.
+
+--------------------------------------------
+日本語
+--------------------------------------------
+
+このソースコード（HTML、JavaScript、CSS、および付属する全ての
+スクリプト・ドキュメントを含む）の著作権は GreenCross-YAMAGATA+S
+に帰属します。
+
+本コードは閲覧および本ツールの正常な使用の目的のみで公開されています。
+事前の書面による許可なく、以下の行為を禁止します：
+
+  - 商用目的での使用
+  - 再配布または公開
+  - 改変、改造、派生物の作成
+  - 本コードに基づいた類似ツールの開発
+  - リバースエンジニアリングおよびコードの抽出
+
+本ツールを業務目的で利用したい場合、または本コードの一部を
+別のプロジェクトで利用したい場合は、GreenCross-YAMAGATA+S に
+事前にご相談ください。
+
+なお、本ツールが利用している OpenStreetMap データは ODbL ライセンスの
+下で提供されています。生成された SVG に含まれる
+「© OpenStreetMap contributors」の表記は削除しないでください。
+
+--------------------------------------------
+English
+--------------------------------------------
+
+The copyright of this source code (including HTML, JavaScript, CSS,
+and all accompanying scripts and documentation) belongs to
+GreenCross-YAMAGATA+S.
+
+This code is published solely for the purpose of viewing and normal use
+of this tool. Without prior written permission, the following acts are
+prohibited:
+
+  - Commercial use
+  - Redistribution or republication
+  - Modification, adaptation, or creation of derivative works
+  - Development of similar tools based on this code
+  - Reverse engineering or extraction of the code
+
+If you wish to use this tool for business purposes or to use any part
+of this code in another project, please contact GreenCross-YAMAGATA+S
+in advance.
+
+Note: The OpenStreetMap data used by this tool is provided under the
+ODbL license. Do not remove the "© OpenStreetMap contributors"
+attribution included in the generated SVG.
+
+--------------------------------------------
+Contact / お問い合わせ
+--------------------------------------------
+
+GreenCross-YAMAGATA+S
+（連絡先：必要に応じて記載）
