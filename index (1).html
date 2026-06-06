@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>GreenCross 地図パスデータ | OSM → SVG</title>
+<style>
+  body {
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #fafafa;
+    color: #222;
+  }
+  /* 入力パネル */
+  .input-panel {
+    background: white;
+    border: 1px solid #d8e6dc;
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 16px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .panel-title {
+    margin: 0 0 14px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #008c44;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #00a651;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+  /* OSMデータ取得ボタンのdisabled状態 */
+  #run:disabled {
+    background: #c8c8c8 !important;
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+  #run:disabled:hover { background: #c8c8c8 !important; }
+  .header-band {
+    background: linear-gradient(135deg, #008c44 0%, #00a651 50%, #00b85d 100%);
+    color: white;
+    padding: 22px 32px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: relative;
+    overflow: hidden;
+  }
+  .header-band::before {
+    content: "+";
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 80px;
+    font-weight: 100;
+    opacity: 0.12;
+    line-height: 1;
+  }
+  .header-band h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .header-band .subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.85;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .header-band .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    margin-left: 10px;
+    font-weight: normal;
+    letter-spacing: 0;
+    vertical-align: middle;
+  }
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 { font-size: 20px; }
+  .row { margin: 12px 0; }
+  label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
+  input[type=text], input[type=number] {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+  button {
+    padding: 10px 20px;
+    font-size: 14px;
+    background: #2c7;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:disabled { background: #aaa; }
+  .result {
+    margin-top: 16px;
+    padding: 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: Menlo, monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    min-height: 60px;
+  }
+  .err { color: #c00; }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    margin: 2px 0;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-family: Menlo, monospace;
+    font-size: 13px;
+  }
+  .stat .label { color: #333; }
+  .stat .count { color: #2c7; font-weight: bold; }
+  .log {
+    font-family: Menlo, monospace;
+    font-size: 11px;
+    color: #666;
+    margin-top: 12px;
+    padding: 8px;
+    background: #2a2a2a;
+    color: #aaa;
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .download-btn {
+    margin-top: 12px;
+    background: #3498db;
+    width: 100%;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: bold;
+  }
+  .download-btn:hover { background: #2980b9; }
+  .hidden { display: none; }
+  .preview {
+    margin-top: 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px;
+    background: white;
+    max-height: 400px;
+    overflow: hidden;
+  }
+  .preview svg { width: 100%; height: auto; max-height: 380px; }
+  details.setup {
+    margin-top: 24px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+  details.setup summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: #555;
+    padding: 4px 0;
+  }
+  details.setup[open] summary { margin-bottom: 10px; }
+  details.setup p { margin: 8px 0; font-size: 13px; color: #444; line-height: 1.6; }
+  details.setup code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: Menlo, monospace;
+    font-size: 12px;
+  }
+  details.setup pre {
+    background: #f5f5f5;
+    border-left: 3px solid #2c7;
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-family: Menlo, monospace;
+    font-size: 12px;
+    overflow-x: auto;
+  }
+  details.howto {
+    margin: 16px 0;
+    padding: 14px 18px;
+    background: #f0faf3;
+    border: 1px solid #b6e5c5;
+    border-radius: 6px;
+  }
+  details.howto summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: #008c44;
+    padding: 4px 0;
+    font-size: 14px;
+  }
+  details.howto[open] summary { margin-bottom: 10px; }
+  details.howto ol {
+    margin: 8px 0;
+    padding-left: 22px;
+    font-size: 13px;
+    color: #333;
+    line-height: 1.9;
+  }
+  details.howto ol li { margin-bottom: 4px; }
+  details.howto .note {
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: white;
+    border-left: 3px solid #00a651;
+    border-radius: 3px;
+  }
+  details.google-guide {
+    margin: 12px 0 8px 0;
+    padding: 10px 14px;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  details.google-guide summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: #4a4a4a;
+    padding: 2px 0;
+  }
+  details.google-guide[open] summary { margin-bottom: 8px; }
+  details.google-guide .method {
+    background: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 6px 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  details.google-guide .method.recommended {
+    border-left: 3px solid #2c7;
+  }
+  details.google-guide .method-title {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  details.google-guide .method-title .badge {
+    background: #2c7;
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-weight: normal;
+  }
+  details.google-guide ol { margin: 4px 0; padding-left: 20px; }
+  details.google-guide .warn {
+    font-size: 11px;
+    color: #b06000;
+    background: #fff8e7;
+    padding: 4px 8px;
+    border-radius: 3px;
+    margin-top: 4px;
+  }
+  /* 半径プリセットボタン */
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .preset-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    background: white;
+    color: #444;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .preset-btn:hover { background: #f0f8ff; border-color: #2c7; }
+  .preset-btn.active { background: #2c7; color: white; border-color: #2c7; }
+  .preset-btn.wide { border-color: #e0a040; color: #b06000; }
+  .preset-btn.wide:hover { background: #fff8e7; }
+  .preset-btn.wide.active { background: #e0a040; color: white; border-color: #e0a040; }
+  .preset-divider {
+    width: 1px;
+    background: #ddd;
+    margin: 0 4px;
+  }
+  .wide-warning {
+    font-size: 11px;
+    color: #b06000;
+    background: #fff8e7;
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 6px;
+    border-left: 3px solid #e0a040;
+  }
+  /* disabledボタンのスタイル */
+  .download-btn:disabled {
+    background: #ccc !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .download-btn:disabled:hover { background: #ccc !important; }
+  .jsx-btn {
+    margin-top: 8px;
+    background: #555;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .jsx-btn:hover { background: #333; }
+  .step-num {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    background: #2c7;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header class="header-band">
+  <h1>GreenCross 地図パスデータ<span class="badge">v1.0</span></h1>
+  <div class="subtitle">OpenStreetMap → SVG Generator</div>
+</header>
+
+<div class="container">
+
+<p style="margin-top: 16px;">座標と半径からOSMデータを取得し、SVGとしてダウンロードします。</p>
+<p style="color: #c00; background: #fff5f5; padding: 12px; border-left: 3px solid #c00; border-radius: 4px; font-size: 13px; line-height: 1.6;">
+⚠️ <strong>重要：クレジット表記について</strong><br>
+地図データの左下（アートボード左下）に配置されている<br>
+<strong>「© OpenStreetMap contributors」</strong>（※"contributors" の s を忘れずに）<br>
+の表記を必ずお願いいたします。
+</p>
+
+<!-- 簡単な使い方 -->
+<details class="howto">
+  <summary>📖 簡単な使い方</summary>
+  <ol>
+    <li><strong>座標</strong>を入力（例：<code>38.246, 140.339</code>）</li>
+    <li><strong>半径</strong>を入力（0.1〜5.0 km、目安は 0.5〜3.0）</li>
+    <li><strong>「OSMデータを取得」</strong>ボタンをクリック</li>
+    <li>取得完了後、<strong>「⬇ SVGをダウンロード」</strong>ボタンが表示されます</li>
+    <li>ダウンロードされたSVGを<strong>Illustratorで開く</strong></li>
+    <li>必要に応じて「ファイル → スクリプト → promote_groups_to_layers」でレイヤー昇格</li>
+  </ol>
+  <div class="note">
+    ⏱ <strong>所要時間：通常 30秒〜2分程度</strong>（範囲の広さ・回線状況によって変動）<br>
+    📡 OSMデータはOpenStreetMapのサーバーから取得します。混雑時は時間がかかることがあります。
+  </div>
+</details>
+
+<div class="input-panel">
+  <h3 class="panel-title">📍 場所と範囲を指定</h3>
+
+  <details class="google-guide">
+    <summary>🗺️ Googleマップから座標を取得する方法（クリックで開く）</summary>
+
+    <div class="method recommended">
+      <div class="method-title">方法B：右クリックで取得<span class="badge">おすすめ</span></div>
+      <ol>
+        <li>Googleマップで目的の場所を表示</li>
+        <li>その場所を<strong>右クリック</strong></li>
+        <li>メニュー上部に座標が表示される（例：35.6586054, 139.7454368）</li>
+        <li>クリックでコピー → 下の入力欄に貼り付け</li>
+      </ol>
+      <div style="font-size: 11px; color: #666;">💡 ピンポイントの座標が取れるので精度が高い</div>
+    </div>
+
+    <div class="method">
+      <div class="method-title">方法A：URLから取得（画面中央の座標）</div>
+      <ol>
+        <li>Googleマップで目的の場所を<strong>画面中央</strong>に表示</li>
+        <li>URLバーの長いURLを全部コピー</li>
+        <li>下の入力欄に貼り付け（自動で座標抽出されます）</li>
+      </ol>
+      <div class="warn">⚠️ 共有ボタンの短縮URL (maps.app.goo.gl) は使えません。一度ブラウザで開いてから、URLバーの長いURLをコピーしてください。</div>
+    </div>
+  </details>
+
+  <div class="row">
+    <label>座標 (lat, lon) または GoogleマップURL</label>
+    <input type="text" id="latlon" value="" placeholder="例: 38.246, 140.339  または GoogleマップのURLを貼り付け">
+  </div>
+  <div class="row">
+    <label>半径 [km]</label>
+    <div class="preset-row" id="presetRow">
+      <button class="preset-btn" data-radius="0.3">0.3 近影</button>
+      <button class="preset-btn active" data-radius="0.5">0.5 標準</button>
+      <button class="preset-btn" data-radius="0.7">0.7 中景</button>
+      <button class="preset-btn" data-radius="1.0">1.0 広域</button>
+      <div class="preset-divider"></div>
+      <button class="preset-btn wide" data-radius="2.0">2.0 超広域</button>
+      <button class="preset-btn wide" data-radius="3.0">3.0 超広域</button>
+    </div>
+    <input type="number" id="radius" value="0.5" min="0.1" max="5.0" step="0.1">
+    <div class="wide-warning" id="wideWarning" style="display:none;">
+      ⚠️ 超広域（2km以上）は取得に時間がかかります。1〜3分の待ち時間を想定してください。
+    </div>
+  </div>
+  <div class="row">
+    <button id="run" disabled>OSMデータを取得</button>
+  </div>
+</div>
+
+<div class="result" id="result">（結果がここに表示されます）</div>
+
+<button id="download" class="download-btn" disabled>⬇ SVGをダウンロード（取得後に有効化）</button>
+
+<div class="preview hidden" id="preview"></div>
+
+<div class="log" id="log"></div>
+
+<!-- 初回セットアップセクション (折りたたみ) -->
+<details class="setup">
+  <summary>📦 初回セットアップ：レイヤー昇格スクリプトをIllustratorに登録</summary>
+
+  <p><strong>「レイヤー昇格」って何？</strong></p>
+  <p>SVGをIllustratorで開くと、建物・道路・水域などの地物はすべて「<strong>グループ</strong>」として読み込まれます。グループのままだと、項目ごとの編集が手間です。レイヤーに昇格すると、Illustratorの<strong>レイヤーパネル</strong>に「buildings」「roads_main」「rail」などが並び、以下が簡単になります：</p>
+
+  <ul style="margin: 6px 0 8px 0; padding-left: 22px; font-size: 13px; color: #444; line-height: 1.7;">
+    <li>👁 表示/非表示の切替（例：建物だけ消して道路を見やすく）</li>
+    <li>🔒 ロック（例：背景レイヤーを誤って動かさない）</li>
+    <li>🎨 一括選択・色変更（例：道路を全部赤に）</li>
+    <li>↕ 重ね順の調整（例：建物を背景に送る）</li>
+  </ul>
+
+  <p>このスクリプトをIllustratorに一度登録すれば、SVGを開いた後ワンクリックでグループがレイヤーに昇格します（<strong>初回1回だけセットアップ</strong>）。</p>
+
+  <p><span class="step-num">1</span><strong>スクリプトをダウンロード</strong></p>
+  <button id="downloadJsx" class="jsx-btn">⬇ promote_groups_to_layers.jsx をダウンロード</button>
+
+  <p><span class="step-num">2</span><strong>Illustratorのスクリプトフォルダに移動</strong></p>
+
+  <p style="background: #fff4e0; padding: 10px; border-left: 3px solid #ffa500; border-radius: 4px;">
+  ⚠️ <strong>フォルダ名は Illustrator のバージョンや環境によって異なります。</strong><br>
+  下記の候補を順に試してください。実際にFinder/エクスプローラーで辿りながら確認するのが確実です。
+  </p>
+
+  <p><strong>Windows の場合：</strong></p>
+  <p>エクスプローラーで以下の順にフォルダを辿ります：</p>
+  <pre>C:\Program Files\Adobe\Adobe Illustrator [バージョン名]
+  └ Presets
+    └ ja_JP
+      └ スクリプト</pre>
+
+  <p>💡 <strong>速いやり方：</strong> エクスプローラーのアドレスバーに以下を貼り付け：</p>
+  <pre>C:\Program Files\Adobe\Adobe Illustrator 2026\Presets\ja_JP\スクリプト</pre>
+  <p style="font-size: 12px; color: #888;">※ バージョン番号（2026）は使用中のものに変更。英語環境なら <code>ja_JP</code> → <code>en_US</code>、<code>スクリプト</code> → <code>Scripts</code>。</p>
+
+  <p><strong>Mac の場合：</strong></p>
+  <p>Finder で「アプリケーション」を開き、以下の順にフォルダを辿ります：</p>
+  <pre>Adobe Illustrator [バージョン名]
+  └ Presets （または Presets.localized）
+    └ ja_JP
+      └ スクリプト （または Scripts）</pre>
+
+  <p>💡 <strong>速いやり方：</strong> Finder で <code>⌘ + Shift + G</code> を押して、以下のどちらかを貼り付け：</p>
+  <pre>/Applications/Adobe Illustrator 2026/Presets.localized/ja_JP/スクリプト
+/Applications/Adobe Illustrator 2026/Presets/ja_JP/スクリプト</pre>
+  <p style="font-size: 12px; color: #888;">※ バージョン番号（2026）は使用中のものに変更。1つ目でエラーが出たら2つ目を試す。</p>
+
+  <p>⚠️ <strong>アプリケーション/Program Filesフォルダ内なので、コピー時に管理者パスワードを求められることがあります。</strong></p>
+
+  <p><span class="step-num">3</span><strong>Illustratorを再起動</strong></p>
+  <p>スクリプトを認識させるため、Illustratorを一度終了して開き直してください。</p>
+
+  <p><span class="step-num">4</span><strong>使い方</strong></p>
+  <p>SVGをIllustratorで開いた後、メニューから「<strong>ファイル → スクリプト → promote_groups_to_layers</strong>」を選ぶと、グループがレイヤーに昇格します。</p>
+</details>
+
+<script>
+const btn = document.getElementById('run');
+const downloadBtn = document.getElementById('download');
+const previewEl = document.getElementById('preview');
+const resultEl = document.getElementById('result');
+const logEl = document.getElementById('log');
+
+// 取得したOSMデータを保存
+let lastElements = null;
+let lastInput = null;
+
+// Overpass APIエンドポイント（複数）
+const OVERPASS_URLS = [
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.openstreetmap.fr/api/interpreter",
+];
+
+// GoogleマップURLから座標を抽出 (lat, lon を返す。なければ null)
+function extractLatLonFromInput(input) {
+  // 1. まず純粋な座標形式かチェック (例: "38.246, 140.339")
+  const directMatch = input.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (directMatch) {
+    return { lat: parseFloat(directMatch[1]), lon: parseFloat(directMatch[2]), source: "direct" };
+  }
+
+  // 2. Googleマップ URL の @lat,lon パターンを優先（画面中央）
+  const atMatch = input.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch) {
+    return { lat: parseFloat(atMatch[1]), lon: parseFloat(atMatch[2]), source: "url-center" };
+  }
+
+  // 3. ?q=lat,lon パターン（検索クエリ）
+  const qMatch = input.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (qMatch) {
+    return { lat: parseFloat(qMatch[1]), lon: parseFloat(qMatch[2]), source: "url-query" };
+  }
+
+  // 4. 短縮URLの検出 (エラーメッセージ用)
+  if (/maps\.app\.goo\.gl|goo\.gl\/maps/.test(input)) {
+    return { error: "短縮URLは座標を含みません。一度ブラウザで開いてから、URLバーの長いURLをコピーしてください。" };
+  }
+
+  return null;
+}
+
+function log(msg) {
+  const ts = new Date().toLocaleTimeString('ja-JP');
+  logEl.textContent += `[${ts}] ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function clearLog() { logEl.textContent = ''; }
+
+// 中心点+半径km → bbox (south, west, north, east)
+function expandBbox(lat, lon, radiusKm) {
+  const dlat = radiusKm / 111.0;
+  const dlon = radiusKm / (111.0 * Math.max(Math.cos(lat * Math.PI / 180), 1e-6));
+  return {
+    south: lat - dlat,
+    west:  lon - dlon,
+    north: lat + dlat,
+    east:  lon + dlon,
+  };
+}
+
+// Overpassクエリ組み立て
+function buildQuery(bbox) {
+  const { south, west, north, east } = bbox;
+  const b = `(${south},${west},${north},${east})`;
+  return `
+[out:json][timeout:180];
+(
+  way["highway"]${b};
+  way["railway"]${b};
+  way["waterway"]${b};
+  way["natural"="water"]${b};
+  way["building"]${b};
+  way["landuse"]${b};
+);
+out body;
+>;
+out skel qt;
+  `.trim();
+}
+
+// 要素を分類してカウント
+function categorize(elements) {
+  const counts = {
+    roads_highway: 0,
+    roads_main: 0,
+    roads_minor: 0,
+    rail: 0,
+    water_river: 0,
+    water_static: 0,
+    buildings: 0,
+    landuse: 0,
+    others: 0,
+    nodes: 0,
+    ways: 0,
+  };
+  for (const el of elements) {
+    if (el.type === "node") { counts.nodes++; continue; }
+    if (el.type !== "way") continue;
+    counts.ways++;
+    const t = el.tags || {};
+    if (t.building) counts.buildings++;
+    else if (t.landuse) counts.landuse++;
+    else if (t.natural === "water") counts.water_static++;
+    else if (t.waterway) counts.water_river++;
+    else if (t.railway) counts.rail++;
+    else if (t.highway) {
+      if (["motorway","trunk"].includes(t.highway)) counts.roads_highway++;
+      else if (["primary","secondary"].includes(t.highway)) counts.roads_main++;
+      else counts.roads_minor++;
+    } else {
+      counts.others++;
+    }
+  }
+  return counts;
+}
+
+// 複数エンドポイントを順に試す (GET方式 / CORSプリフライト回避)
+async function fetchOverpassWithFallback(query) {
+  for (const url of OVERPASS_URLS) {
+    try {
+      log(`Overpass: ${url}`);
+      const t0 = performance.now();
+
+      // タイムアウト付きfetch (180秒 / 大きな範囲対応)
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 180000);
+
+      const fullUrl = url + "?data=" + encodeURIComponent(query);
+      const res = await fetch(fullUrl, {
+        method: "GET",
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        log(`  → HTTP ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      const t1 = performance.now();
+      log(`  → OK (${((t1-t0)/1000).toFixed(1)}s, ${data.elements?.length || 0} elements)`);
+      return data;
+    } catch (e) {
+      if (e.name === "AbortError") {
+        log(`  → タイムアウト (30秒)`);
+      } else {
+        log(`  → 失敗: ${e.message}`);
+      }
+    }
+  }
+  throw new Error("全エンドポイントで取得に失敗しました");
+}
+
+btn.addEventListener('click', async () => {
+  const latlonStr = document.getElementById('latlon').value.trim();
+  const radius = parseFloat(document.getElementById('radius').value);
+
+  // 座標抽出 (純粋座標 / Googleマップ URL 両対応)
+  const parsed = extractLatLonFromInput(latlonStr);
+  if (!parsed) {
+    resultEl.classList.add('err');
+    resultEl.textContent = '座標 または GoogleマップURL を入力してください。\n例: 38.246, 140.339';
+    return;
+  }
+  if (parsed.error) {
+    resultEl.classList.add('err');
+    resultEl.textContent = parsed.error;
+    return;
+  }
+  const lat = parsed.lat;
+  const lon = parsed.lon;
+
+  // URLから抽出した場合は、入力欄を抽出済み座標に置き換え（ユーザーに見える化）
+  if (parsed.source !== "direct") {
+    document.getElementById('latlon').value = `${lat}, ${lon}`;
+  }
+
+  if (isNaN(radius) || radius < 0.1 || radius > 5.0) {
+    resultEl.classList.add('err');
+    resultEl.textContent = '半径は 0.1〜5.0 km の範囲で入力してください';
+    return;
+  }
+
+  btn.disabled = true;
+  resultEl.classList.remove('err');
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = "⬇ SVGをダウンロード（取得後に有効化）";
+  previewEl.classList.add('hidden');
+  lastElements = null;
+  clearLog();
+  resultEl.textContent = '取得中...';
+
+  try {
+    log(`中心: ${lat}, ${lon}` + (parsed.source === "url-center" ? " (URL画面中央から抽出)" : parsed.source === "url-query" ? " (URLクエリから抽出)" : ""));
+    log(`半径: ${radius} km`);
+
+    const bbox = expandBbox(lat, lon, radius);
+    log(`BBox: S${bbox.south.toFixed(4)} W${bbox.west.toFixed(4)} N${bbox.north.toFixed(4)} E${bbox.east.toFixed(4)}`);
+
+    const query = buildQuery(bbox);
+    log(`Query (${query.length} chars) built`);
+
+    const data = await fetchOverpassWithFallback(query);
+    const elements = data.elements || [];
+    const counts = categorize(elements);
+
+    log(`分類完了`);
+
+    // データを保存
+    lastElements = elements;
+    lastInput = { lat, lon, radius };
+
+    const labels = {
+      roads_highway: "高速・自動車専用",
+      roads_main:    "主要道路 (primary/secondary)",
+      roads_minor:   "その他の道路",
+      rail:          "鉄道",
+      water_river:   "河川・水路",
+      water_static:  "湖沼・水域",
+      buildings:     "建物",
+      landuse:       "土地利用",
+      others:        "その他",
+    };
+
+    let html = '<div style="font-weight: bold; margin-bottom: 8px;">取得結果</div>';
+    for (const key of Object.keys(labels)) {
+      html += `<div class="stat"><span class="label">${labels[key]}</span><span class="count">${counts[key]}</span></div>`;
+    }
+    html += `<div class="stat" style="margin-top: 10px; background: #e8f5e9;"><span class="label">合計 way</span><span class="count">${counts.ways}</span></div>`;
+    html += `<div class="stat"><span class="label">合計 node</span><span class="count">${counts.nodes}</span></div>`;
+    resultEl.innerHTML = html;
+
+    // SVGダウンロードボタンを有効化
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = "⬇ SVGをダウンロード";
+
+  } catch (e) {
+    resultEl.classList.add('err');
+    resultEl.textContent = 'エラー: ' + e.message;
+    log(`エラー: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// =============================================================
+//  半径プリセットボタン制御
+// =============================================================
+const radiusInput = document.getElementById('radius');
+const presetRow = document.getElementById('presetRow');
+const wideWarning = document.getElementById('wideWarning');
+
+function updatePresetActive(val) {
+  const v = parseFloat(val);
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.radius) === v);
+  });
+  // 超広域警告の表示
+  wideWarning.style.display = v >= 2.0 ? 'block' : 'none';
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.radius;
+    radiusInput.value = v;
+    updatePresetActive(v);
+  });
+});
+
+radiusInput.addEventListener('input', () => {
+  updatePresetActive(radiusInput.value);
+});
+
+// 初期化
+updatePresetActive(radiusInput.value);
+
+// =============================================================
+//  座標入力監視 → 取得ボタンの有効/無効切替
+// =============================================================
+const latlonInput = document.getElementById('latlon');
+
+function updateRunButtonState() {
+  const hasValue = latlonInput.value.trim().length > 0;
+  btn.disabled = !hasValue;
+}
+
+latlonInput.addEventListener('input', updateRunButtonState);
+latlonInput.addEventListener('paste', () => setTimeout(updateRunButtonState, 10));
+updateRunButtonState(); // 初期状態
+
+// =============================================================
+//  SVG生成
+// =============================================================
+
+// Web Mercator投影 (lat,lon → x,y)
+function webMercatorXY(lat, lon) {
+  const originShift = 20037508.342789244;
+  const x = lon * originShift / 180.0;
+  let y = Math.log(Math.tan((90.0 + lat) * Math.PI / 360.0)) / (Math.PI / 180.0);
+  y = y * originShift / 180.0;
+  return [x, y];
+}
+
+// way が閉じているか (始点と終点が同じ)
+function isClosed(latlons) {
+  if (latlons.length < 4) return false;
+  const a = latlons[0];
+  const b = latlons[latlons.length - 1];
+  return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+}
+
+// レイヤ分類 (SVG生成用、より詳細な情報を返す)
+function classifyForSvg(tags) {
+  if (tags.building)           return { layer: "buildings",     defaultGeom: "area" };
+  if (tags.landuse)            return { layer: "landuse",       defaultGeom: "area" };
+  if (tags.natural === "water")return { layer: "water_static",  defaultGeom: "area" };
+  if (tags.waterway)           return { layer: "water_river",   defaultGeom: "line" };
+  if (tags.railway)            return { layer: "rail",          defaultGeom: "line" };
+  if (tags.highway) {
+    const hw = tags.highway;
+    if (["motorway","trunk"].includes(hw))      return { layer: "roads_highway", defaultGeom: "line" };
+    if (["primary","secondary"].includes(hw))   return { layer: "roads_main",    defaultGeom: "line" };
+    return { layer: "roads_minor", defaultGeom: "line" };
+  }
+  return { layer: "others", defaultGeom: "line" };
+}
+
+// レイヤごとのスタイル
+function styleFor(layer) {
+  const styles = {
+    buildings:      { fill: "#cfcfcf", stroke: "#666666", sw: 0.7 },
+    landuse:        { fill: "#ece8da", stroke: "#c8c1a8", sw: 0.5 },
+    water_static:   { fill: "#d8eaff", stroke: "#7fb6ff", sw: 0.7 },
+    water_river:    { fill: "none",    stroke: "#3498db", sw: 1.2 },
+    rail:           { fill: "none",    stroke: "#34495e", sw: 1.1, dash: "6,4" },
+    roads_highway:  { fill: "none",    stroke: "#e74c3c", sw: 2.6 },
+    roads_main:     { fill: "none",    stroke: "#f39c12", sw: 1.9 },
+    roads_minor:    { fill: "none",    stroke: "#777777", sw: 1.3 },
+  };
+  return styles[layer] || { fill: "none", stroke: "#777777", sw: 0.9 };
+}
+
+// OSM要素からSVG用featureに変換
+function buildFeatures(elements) {
+  const nodeMap = new Map();
+  for (const el of elements) {
+    if (el.type === "node") nodeMap.set(el.id, [el.lat, el.lon]);
+  }
+
+  const features = [];
+  for (const el of elements) {
+    if (el.type !== "way") continue;
+    const nds = (el.nodes || []).map(id => nodeMap.get(id));
+    if (nds.some(n => !n) || nds.length < 2) continue;
+
+    const tags = el.tags || {};
+    const { layer, defaultGeom } = classifyForSvg(tags);
+    const geom = (defaultGeom === "area" && isClosed(nds)) ? "area" : "line";
+    const pts = nds.map(([lat, lon]) => webMercatorXY(lat, lon));
+
+    features.push({ layer, geom, pts });
+  }
+  return features;
+}
+
+// 全featureから範囲を計算
+function calcExtent(features) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const f of features) {
+    for (const [x, y] of f.pts) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+// SVG文字列を生成
+function buildSvg(elements, author = "GreenCross-YAMAGATA+S") {
+  const features = buildFeatures(elements);
+  if (features.length === 0) throw new Error("描画できる地物がありません");
+
+  let { minX, minY, maxX, maxY } = calcExtent(features);
+  const pad = Math.max(maxX - minX, maxY - minY) * 0.02;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const width = maxX - minX;
+  const height = maxY - minY;
+
+  const pathD = (pts) => pts.map((p, i) =>
+    (i === 0 ? "M" : "L") + `${(p[0]-minX).toFixed(3)},${(maxY-p[1]).toFixed(3)}`
+  ).join(" ");
+
+  const layerOrder = ["landuse", "water_static", "water_river", "buildings",
+                      "roads_minor", "roads_main", "roads_highway", "rail", "others"];
+
+  const byLayer = {};
+  for (const l of layerOrder) byLayer[l] = [];
+  for (const f of features) {
+    if (!byLayer[f.layer]) byLayer[f.layer] = [];
+    byLayer[f.layer].push(f);
+  }
+
+  let svg = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  svg += `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" `;
+  svg += `width="${width.toFixed(0)}" height="${height.toFixed(0)}" `;
+  svg += `viewBox="0 0 ${width.toFixed(3)} ${height.toFixed(3)}">\n`;
+  svg += '  <title>OSM export web v1.0</title>\n';
+  svg += `  <desc>Data © OpenStreetMap contributors | author=${author}</desc>\n`;
+  svg += `  <metadata>{"creator":"${author}","generator":"OSM export web v1.0"}</metadata>\n`;
+
+  for (const layer of layerOrder) {
+    const items = byLayer[layer] || [];
+    if (items.length === 0) continue;
+    svg += `  <g id="${layer}">\n`;
+    for (const geomType of ["area", "line"]) {
+      for (const f of items) {
+        if (f.geom !== geomType) continue;
+        const sty = styleFor(layer);
+        const d = pathD(f.pts);
+        if (geomType === "area") {
+          svg += `    <path d="${d} Z" fill="${sty.fill}" stroke="${sty.stroke}" stroke-width="${sty.sw}" data-layer="${layer}"/>\n`;
+        } else {
+          const dash = sty.dash ? ` stroke-dasharray="${sty.dash}"` : "";
+          svg += `    <path d="${d}" fill="none" stroke="${sty.stroke}" stroke-width="${sty.sw}" stroke-linecap="round" stroke-linejoin="round"${dash} data-layer="${layer}"/>\n`;
+        }
+      }
+    }
+    svg += '  </g>\n';
+  }
+
+  // クレジット
+  const margin = 6.0;
+  const creditText = "© OpenStreetMap contributors";
+  const creditWidth = Math.min(Math.max(creditText.length * 5.5, 160), 1200);
+  svg += '  <g id="credit" opacity="0.85">\n';
+  svg += `    <rect x="${margin}" y="${(height-(margin+12)).toFixed(1)}" width="${creditWidth.toFixed(1)}" height="12" fill="#f6f6f6"/>\n`;
+  svg += `    <text x="${margin+4}" y="${(height-(margin+3)).toFixed(1)}" font-size="9" font-family="sans-serif" fill="#444">${creditText}</text>\n`;
+  svg += '  </g>\n';
+  svg += '</svg>\n';
+
+  return svg;
+}
+
+// ファイル名生成
+function makeFilename(input) {
+  const { lat, lon, radius } = input;
+  return `OSM_${lat.toFixed(5)}_${lon.toFixed(5)}_r${radius}km.svg`;
+}
+
+// SVGをダウンロード
+function downloadFile(content, filename, mime = "image/svg+xml") {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ダウンロードボタンのクリックハンドラ
+downloadBtn.addEventListener('click', () => {
+  if (!lastElements) {
+    alert("先にOSMデータを取得してください");
+    return;
+  }
+  try {
+    log("SVG生成中...");
+    const t0 = performance.now();
+    const svgContent = buildSvg(lastElements);
+    const t1 = performance.now();
+    log(`SVG生成完了 (${((t1-t0)/1000).toFixed(2)}s, ${(svgContent.length/1024).toFixed(1)} KB)`);
+
+    // プレビュー表示
+    previewEl.innerHTML = svgContent;
+    previewEl.classList.remove('hidden');
+
+    // ダウンロード
+    const filename = makeFilename(lastInput);
+    downloadFile(svgContent, filename);
+    log(`ダウンロード: ${filename}`);
+  } catch (e) {
+    alert("SVG生成エラー: " + e.message);
+    log(`エラー: ${e.message}`);
+  }
+});
+
+// =============================================================
+//  レイヤー昇格スクリプト (JSX) - Illustrator用
+// =============================================================
+
+const PROMOTE_JSX = `/*
+  promote_groups_to_layers.jsx
+  - 開いているドキュメント内で、トップレベルのグループ(<g id="...">由来)を本物のIllustratorレイヤに昇格
+  作者: GreenCross-YAMAGATA+S
+  対応: Adobe Illustrator (Mac / Windows)
+*/
+(function () {
+  if (app.documents.length === 0) {
+    alert("ドキュメントを開いてから実行してください。");
+    return;
+  }
+  var doc = app.activeDocument;
+
+  var expected = ["landuse","water_static","water_river","buildings","roads_minor","roads_main","roads_highway","rail","others"];
+
+  function ensureLayer(name){
+    try { return doc.layers.getByName(name); }
+    catch(e){ var l = doc.layers.add(); l.name = name; return l; }
+  }
+  function moveGroupToLayer(g, layer){
+    g.move(layer, ElementPlacement.PLACEATBEGINNING);
+  }
+
+  var baseLayer = doc.layers[0];
+
+  // 既知のレイヤー名を先に処理 (描画順を維持)
+  for (var i=0; i<expected.length; i++){
+    var name = expected[i];
+    for (var j=baseLayer.groupItems.length-1; j>=0; j--){
+      var g = baseLayer.groupItems[j];
+      if (g.name === name){
+        var L = ensureLayer(name);
+        moveGroupToLayer(g, L);
+      }
+    }
+  }
+
+  // 残りのグループも昇格
+  for (var k=baseLayer.groupItems.length-1; k>=0; k--){
+    var gg = baseLayer.groupItems[k];
+    if (gg.name && gg.name.length){
+      var LL = ensureLayer(gg.name);
+      moveGroupToLayer(gg, LL);
+    }
+  }
+
+  // 空になった元レイヤーを削除
+  try {
+    if (baseLayer.pageItems.length === 0 && baseLayer.layers.length === 0 && baseLayer.groupItems.length === 0){
+      baseLayer.remove();
+    }
+  } catch(_){}
+
+  alert("グループを独立レイヤに昇格しました。");
+})();
+`;
+
+// JSXダウンロードボタン
+document.getElementById('downloadJsx').addEventListener('click', () => {
+  downloadFile(PROMOTE_JSX, 'promote_groups_to_layers.jsx', 'application/javascript');
+  log("JSXスクリプトをダウンロードしました");
+});
+</script>
+
+</div><!-- /container -->
+
+</body>
+</html>
